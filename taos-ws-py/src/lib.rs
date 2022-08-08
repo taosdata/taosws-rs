@@ -1,14 +1,10 @@
-use pyo3::types::{PyTuple, PyDict};
+use pyo3::types::{PyDict, PyTuple};
 use pyo3::PyIterProtocol;
 use pyo3::{create_exception, exceptions::PyException};
 use pyo3::{prelude::*, PyObjectProtocol};
 use taos_query::prelude::sync::*;
-use taos_query::{
-    common::RawBlock as Block,
-    prelude::BorrowedValue,
-    Fetchable,
-};
-use taos_ws::{Taos, TaosBuilder, ResultSet};
+use taos_query::{common::RawBlock as Block, prelude::BorrowedValue, Fetchable};
+use taos_ws::{ResultSet, Taos, TaosBuilder};
 
 create_exception!(taosws, ConnectionError, PyException);
 create_exception!(taosws, QueryError, PyException);
@@ -92,7 +88,7 @@ struct TaosResult {
 impl TaosConnection {
     fn query(&mut self, sql: &str) -> PyResult<TaosResult> {
         match self.cursor {
-            Some(_) => {},
+            Some(_) => {}
             None => self.cursor = Some(self.cursor().unwrap()),
         };
         if let Some(cursor) = self.cursor.as_ref() {
@@ -115,7 +111,7 @@ impl TaosConnection {
 
     fn execute(&mut self, sql: &str) -> PyResult<i32> {
         match self.cursor {
-            Some(_) => {},
+            Some(_) => {}
             None => self.cursor = Some(self.cursor().unwrap()),
         };
         if let Some(cursor) = self.cursor.as_ref() {
@@ -137,8 +133,11 @@ impl TaosConnection {
     fn rollback(&self) {}
 
     fn cursor(&self) -> PyResult<TaosCursor> {
-        Ok(TaosCursor { 
-            _inner: self.builder.build().map_err(|err| ConnectionError::new_err(err.to_string()))?,
+        Ok(TaosCursor {
+            _inner: self
+                .builder
+                .build()
+                .map_err(|err| ConnectionError::new_err(err.to_string()))?,
             _description: None,
             _rowcount: 0,
             _close: false,
@@ -156,7 +155,11 @@ impl TaosCursor {
             Err(ConnectionError::new_err("cursor already closed"))
         } else {
             if let Some(rs) = self._result.as_ref() {
-                Ok(rs.fields().into_iter().map(|f| (f.name().to_string(),f.ty() as u8)).collect::<Vec<_>>())
+                Ok(rs
+                    .fields()
+                    .into_iter()
+                    .map(|f| (f.name().to_string(), f.ty() as u8))
+                    .collect::<Vec<_>>())
             } else {
                 Ok(vec![])
             }
@@ -171,17 +174,17 @@ impl TaosCursor {
             Ok(self._rowcount)
         }
     }
-    #[args(
-        py_kwargs = "**"
-    )]
-    fn execute(&mut self, operation: &str, _py_kwargs: Option<&PyDict>) -> PyResult<()>{
-        self._result = Some(self._inner.query(operation).map_err(|err| QueryError::new_err(err.errstr()))?);
+    #[args(py_kwargs = "**")]
+    fn execute(&mut self, operation: &str, _py_kwargs: Option<&PyDict>) -> PyResult<()> {
+        self._result = Some(
+            self._inner
+                .query(operation)
+                .map_err(|err| QueryError::new_err(err.errstr()))?,
+        );
         Ok(())
     }
 
-    #[args(
-        py_kwargs = "**"
-    )]
+    #[args(py_kwargs = "**")]
     fn executemany(&mut self, operation: &str, py_kwargs: Option<&PyDict>) -> PyResult<()> {
         self.execute(operation, py_kwargs)
     }
@@ -194,7 +197,7 @@ impl TaosCursor {
 
     fn fetch_many(&self) {}
 
-    fn fetchall (&mut self) -> PyResult<Vec<PyObject>> {
+    fn fetchall(&mut self) -> PyResult<Vec<PyObject>> {
         let mut ret = Vec::<PyObject>::new();
         if let Some(res) = self._result.as_mut() {
             if let Some(block) = res.fetch_raw_block().unwrap_or_default() {
@@ -216,7 +219,6 @@ impl TaosCursor {
     }
 
     fn next_set(&self) {}
-
 }
 
 fn convert_raw_block_to_python_tuple(ret: &mut Vec<PyObject>, block: &Option<Block>) {
@@ -324,7 +326,8 @@ impl TaosResult {
 
 #[pyfunction]
 fn connect(dsn: &str) -> PyResult<TaosConnection> {
-    let builder = TaosBuilder::from_dsn(dsn).map_err(|err| ConnectionError::new_err(err.to_string()))?;
+    let builder =
+        TaosBuilder::from_dsn(dsn).map_err(|err| ConnectionError::new_err(err.to_string()))?;
     Ok(TaosConnection {
         builder,
         cursor: None,
