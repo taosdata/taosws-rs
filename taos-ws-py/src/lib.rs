@@ -342,5 +342,8 @@ fn taosws(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add("ConnectionError", py.get_type::<ConnectionError>())?;
     m.add("QueryError", py.get_type::<QueryError>())?;
     m.add("FetchError", py.get_type::<FetchError>())?;
+    m.add("apilevel", 1)?;
+    m.add("threadsafety", 1)?;
+    m.add("paramstyle", "pyformat")?;
     Ok(())
 }
