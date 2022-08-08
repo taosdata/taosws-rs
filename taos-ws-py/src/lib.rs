@@ -151,11 +151,15 @@ impl TaosConnection {
 #[pymethods]
 impl TaosCursor {
     #[getter]
-    fn description(&self) -> PyResult<Option<String>> {
+    fn description(&self) -> PyResult<Vec<(String, u8)>> {
         if self._close {
             Err(ConnectionError::new_err("cursor already closed"))
         } else {
-            Ok(self._description.clone())
+            if let Some(rs) = self._result.as_ref() {
+                Ok(rs.fields().into_iter().map(|f| (f.name().to_string(),f.ty() as u8)).collect::<Vec<_>>())
+            } else {
+                Ok(vec![])
+            }
         }
     }
 
@@ -190,7 +194,7 @@ impl TaosCursor {
 
     fn fetch_many(&self) {}
 
-    fn fetch_all (&mut self) -> PyResult<Vec<PyObject>> {
+    fn fetchall (&mut self) -> PyResult<Vec<PyObject>> {
         let mut ret = Vec::<PyObject>::new();
         if let Some(res) = self._result.as_mut() {
             if let Some(block) = res.fetch_raw_block().unwrap_or_default() {
