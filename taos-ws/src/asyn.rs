@@ -118,7 +118,6 @@ pub enum Error {
     DeError(#[from] DeError),
     #[error("{0}")]
     WsError(#[from] WsError),
-
     #[error(transparent)]
     IoError(#[from] std::io::Error),
 }
@@ -751,7 +750,7 @@ async fn test_client() -> anyhow::Result<()> {
         v: i32,
     }
 
-    let values: Vec<A> = rs.deserialize_stream().try_collect().await?;
+    let values: Vec<A> = rs.deserialize().try_collect().await?;
 
     dbg!(values);
 
@@ -787,7 +786,6 @@ async fn test_client_cloud() -> anyhow::Result<()> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 10)]
 async fn ws_show_databases() -> anyhow::Result<()> {
-    use taos_query::Queryable;
     let dsn = std::env::var("TDENGINE_ClOUD_DSN").unwrap_or("http://localhost:6041".to_string());
     let client = WsTaos::from_dsn(dsn).await?;
     let mut rs = client.query("show databases").await?;
@@ -841,7 +839,7 @@ async fn ws_write_raw_block() -> anyhow::Result<()> {
         v: Option<bool>,
     }
 
-    let values: Vec<A> = rs.deserialize_stream().try_collect().await?;
+    let values: Vec<A> = rs.deserialize().try_collect().await?;
 
     dbg!(values);
 

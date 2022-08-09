@@ -1,5 +1,4 @@
 use std::{
-    any::TypeId,
     ffi::{c_void, CStr, CString},
     fmt::{Debug, Display},
     ops::{Deref, DerefMut},
@@ -40,6 +39,15 @@ pub struct WsError {
     source: Option<Box<dyn std::error::Error + 'static>>,
 }
 
+impl WsError {
+    fn from_err(err: Box<dyn std::error::Error + 'static>) -> Self {
+        Self {
+            code: Code::Failed,
+            message: CString::new(err.to_string()).unwrap(),
+            source: Some(err),
+        }
+    }
+}
 #[derive(Debug)]
 pub struct WsMaybeError<T> {
     error: Option<WsError>,
@@ -194,16 +202,6 @@ impl From<&WsError> for WsError {
         Self {
             code: e.code,
             message: e.message.clone(),
-            source: None,
-        }
-    }
-}
-
-impl From<taos_ws::stmt::Error> for WsError {
-    fn from(e: taos_ws::stmt::Error) -> Self {
-        Self {
-            code: e.errno(),
-            message: CString::new(e.errstr()).unwrap(),
             source: None,
         }
     }
@@ -412,7 +410,16 @@ unsafe fn connect_with_dsn(dsn: *const c_char) -> WsTaos {
 /// ```
 #[no_mangle]
 pub unsafe extern "C" fn ws_enable_log() {
-    pretty_env_logger::init();
+    static ONCE_INIT: std::sync::Once = std::sync::Once::new();
+    ONCE_INIT.call_once(|| {
+        let mut builder = pretty_env_logger::formatted_timed_builder();
+        builder.format_timestamp_nanos();
+        if let Ok(s) = ::std::env::var("RUST_LOG") {
+            builder.parse_filters(&s);
+        }
+        builder.init();
+    });
+    log::debug!("enable logger to stdout");
 }
 
 /// Connect via dsn string, returns NULL if failed.
@@ -732,6 +739,7 @@ pub unsafe extern "C" fn ws_timestamp_to_rfc3339(
 #[no_mangle]
 /// Unimplemented currently.
 pub unsafe fn ws_print_row(rs: *mut WS_RES, row: i32) {
+    let (_, _) = (rs, row);
     todo!()
     // match (rs as *mut WsResultSet).as_mut() {
     //     Some(rs) => rs.fetch_block(ptr, rows),
@@ -744,11 +752,8 @@ pub unsafe fn ws_print_row(rs: *mut WS_RES, row: i32) {
 
 #[cfg(test)]
 pub fn init_env() {
-    static ONCE_INIT: std::sync::Once = std::sync::Once::new();
-    ONCE_INIT.call_once(|| {
-        pretty_env_logger::init();
-        std::env::set_var("RUST_DEBUG", "debug");
-    });
+    std::env::set_var("RUST_LOG", "debug");
+    unsafe { ws_enable_log() };
 }
 
 #[cfg(test)]
